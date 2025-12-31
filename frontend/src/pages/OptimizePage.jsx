@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { filesApi, optimizeApi } from '../services/api';
-import { Search, Trophy, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Trophy, Settings, ChevronDown, ChevronUp, Play, TrendingUp } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 function OptimizePage() {
+    const navigate = useNavigate();
     const [files, setFiles] = useState([]);
     const [selectedFile, setSelectedFile] = useState('');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState([]);
     const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // 圖表相關狀態
+    const [expandedRow, setExpandedRow] = useState(null);
+    const [chartData, setChartData] = useState(null);
+    const [chartLoading, setChartLoading] = useState(false);
 
     const [config, setConfig] = useState({
         strategy_modes: ['buy_and_hold', 'single_ma', 'dual_ma'],
@@ -20,6 +28,8 @@ function OptimizePage() {
         slippage: 0.0005,
         top_n: 10,
         sort_by: 'sharpe_ratio',
+        start_date: '',
+        end_date: '',
     });
 
     // 可選的值
@@ -59,6 +69,8 @@ function OptimizePage() {
         }
 
         setLoading(true);
+        setExpandedRow(null);
+        setChartData(null);
         try {
             const res = await optimizeApi.run({ file_id: selectedFile, ...config });
             setResults(res.data);
@@ -66,6 +78,49 @@ function OptimizePage() {
             alert('優化失敗: ' + (err.response?.data?.detail || err.message));
         }
         setLoading(false);
+    };
+
+    // 使用此策略 - 跳轉到回測頁面
+    const handleUseStrategy = (result) => {
+        const params = {
+            strategy_mode: result.strategy_type,
+            ma_fast: result.ma_fast || 20,
+            ma_slow: result.ma_slow || 60,
+            leverage: result.leverage,
+            trade_direction: result.direction,
+            initial_cash: config.initial_cash,
+            fee_rate: config.fee_rate,
+            slippage: config.slippage,
+            start_date: config.start_date,
+            end_date: config.end_date,
+        };
+        localStorage.setItem('optimizeParams', JSON.stringify(params));
+        localStorage.setItem('optimizeFile', selectedFile);
+        navigate('/backtest');
+    };
+
+    // 查看圖表
+    const handleToggleChart = async (index, result) => {
+        if (expandedRow === index) {
+            setExpandedRow(null);
+            setChartData(null);
+            return;
+        }
+
+        setExpandedRow(index);
+        setChartLoading(true);
+        try {
+            const res = await optimizeApi.getChart({
+                file_id: selectedFile,
+                ma_fast: result.ma_fast || 20,
+                ma_slow: result.ma_slow || null,
+                limit: 300
+            });
+            setChartData(res.data);
+        } catch (err) {
+            console.error('載入圖表失敗:', err);
+        }
+        setChartLoading(false);
     };
 
     const toggleStrategy = (value) => {
@@ -185,6 +240,28 @@ function OptimizePage() {
                     </div>
                 </div>
 
+                {/* 時間範圍設定 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                    <div className="form-group">
+                        <label className="form-label">開始日期</label>
+                        <input
+                            type="date"
+                            className="form-input"
+                            value={config.start_date}
+                            onChange={(e) => setConfig({ ...config, start_date: e.target.value })}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">結束日期</label>
+                        <input
+                            type="date"
+                            className="form-input"
+                            value={config.end_date}
+                            onChange={(e) => setConfig({ ...config, end_date: e.target.value })}
+                        />
+                    </div>
+                </div>
+
                 {/* 策略類型選擇 */}
                 <div className="form-group" style={{ marginTop: '1.5rem' }}>
                     <label className="form-label">策略類型</label>
@@ -288,30 +365,125 @@ function OptimizePage() {
                                 <tr>
                                     <th>排名</th><th>策略</th><th>方向</th><th>均線</th><th>槓桿</th>
                                     <th>總報酬</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Calmar</th><th>勝率</th>
+                                    <th style={{ width: '140px' }}>操作</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {results.map((r, i) => (
-                                    <tr key={i}>
-                                        <td>
-                                            <span style={{
-                                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                width: 28, height: 28, borderRadius: '50%',
-                                                background: i === 0 ? '#f39c12' : i === 1 ? '#95a5a6' : i === 2 ? '#cd6133' : '#e0e6ed',
-                                                color: i < 3 ? 'white' : '#2c3e50', fontWeight: 600, fontSize: '0.875rem',
-                                            }}>{i + 1}</span>
-                                        </td>
-                                        <td>{getStrategyLabel(r.strategy_type)}</td>
-                                        <td>{r.direction === 'long_only' ? '僅做多' : '做多做空'}</td>
-                                        <td>{r.strategy_type === 'buy_and_hold' ? '-' : r.ma_slow ? `${r.ma_fast}/${r.ma_slow}` : r.ma_fast}</td>
-                                        <td>{r.leverage}x</td>
-                                        <td style={{ color: r.total_return >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>{r.total_return}%</td>
-                                        <td style={{ color: r.cagr >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>{r.cagr}%</td>
-                                        <td style={{ color: '#ff7675' }}>{r.mdd}%</td>
-                                        <td style={{ fontWeight: 600 }}>{r.sharpe_ratio.toFixed(2)}</td>
-                                        <td>{r.calmar_ratio.toFixed(2)}</td>
-                                        <td>{r.win_rate}%</td>
-                                    </tr>
+                                    <>
+                                        <tr key={i}>
+                                            <td>
+                                                <span style={{
+                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                    width: 28, height: 28, borderRadius: '50%',
+                                                    background: i === 0 ? '#f39c12' : i === 1 ? '#95a5a6' : i === 2 ? '#cd6133' : '#e0e6ed',
+                                                    color: i < 3 ? 'white' : '#2c3e50', fontWeight: 600, fontSize: '0.875rem',
+                                                }}>{i + 1}</span>
+                                            </td>
+                                            <td>{getStrategyLabel(r.strategy_type)}</td>
+                                            <td>{r.direction === 'long_only' ? '僅做多' : '做多做空'}</td>
+                                            <td>{r.strategy_type === 'buy_and_hold' ? '-' : r.ma_slow ? `${r.ma_fast}/${r.ma_slow}` : r.ma_fast}</td>
+                                            <td>{r.leverage}x</td>
+                                            <td style={{ color: r.total_return >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>{r.total_return}%</td>
+                                            <td style={{ color: r.cagr >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>{r.cagr}%</td>
+                                            <td style={{ color: '#ff7675' }}>{r.mdd}%</td>
+                                            <td style={{ fontWeight: 600 }}>{r.sharpe_ratio.toFixed(2)}</td>
+                                            <td>{r.calmar_ratio.toFixed(2)}</td>
+                                            <td>{r.win_rate}%</td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                    <button
+                                                        onClick={() => handleUseStrategy(r)}
+                                                        style={{
+                                                            padding: '0.25rem 0.5rem', fontSize: '0.75rem',
+                                                            background: '#00b894', color: 'white', border: 'none',
+                                                            borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem'
+                                                        }}
+                                                    >
+                                                        <Play size={12} /> 使用
+                                                    </button>
+                                                    {r.strategy_type !== 'buy_and_hold' && (
+                                                        <button
+                                                            onClick={() => handleToggleChart(i, r)}
+                                                            style={{
+                                                                padding: '0.25rem 0.5rem', fontSize: '0.75rem',
+                                                                background: expandedRow === i ? '#667eea' : '#74b9ff', color: 'white', border: 'none',
+                                                                borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem'
+                                                            }}
+                                                        >
+                                                            <TrendingUp size={12} /> 圖表
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {expandedRow === i && (
+                                            <tr key={`chart-${i}`}>
+                                                <td colSpan={12} style={{ padding: '1rem', background: '#f8fafc' }}>
+                                                    {chartLoading ? (
+                                                        <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                                            <div className="spinner"></div>
+                                                        </div>
+                                                    ) : chartData ? (
+                                                        <div>
+                                                            <h4 style={{ margin: '0 0 1rem 0' }}>
+                                                                📈 價格走勢 + 均線 ({r.ma_slow ? `${r.ma_fast}/${r.ma_slow}` : r.ma_fast})
+                                                            </h4>
+                                                            <div style={{ height: 300 }}>
+                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                    <LineChart data={chartData.data}>
+                                                                        <XAxis
+                                                                            dataKey="date"
+                                                                            tick={{ fontSize: 10 }}
+                                                                            tickFormatter={(val) => val.slice(5)}
+                                                                        />
+                                                                        <YAxis
+                                                                            tick={{ fontSize: 10 }}
+                                                                            domain={['auto', 'auto']}
+                                                                            tickFormatter={(val) => val.toLocaleString()}
+                                                                        />
+                                                                        <Tooltip
+                                                                            formatter={(val) => val ? val.toLocaleString() : '-'}
+                                                                            labelFormatter={(label) => `日期: ${label}`}
+                                                                        />
+                                                                        <Legend />
+                                                                        <Line
+                                                                            type="monotone"
+                                                                            dataKey="price"
+                                                                            stroke="#2c3e50"
+                                                                            strokeWidth={1.5}
+                                                                            dot={false}
+                                                                            name="價格"
+                                                                        />
+                                                                        <Line
+                                                                            type="monotone"
+                                                                            dataKey="ma_fast"
+                                                                            stroke="#e74c3c"
+                                                                            strokeWidth={2}
+                                                                            dot={false}
+                                                                            name={`MA${chartData.ma_fast}`}
+                                                                            connectNulls
+                                                                        />
+                                                                        {chartData.ma_slow && (
+                                                                            <Line
+                                                                                type="monotone"
+                                                                                dataKey="ma_slow"
+                                                                                stroke="#3498db"
+                                                                                strokeWidth={2}
+                                                                                dot={false}
+                                                                                name={`MA${chartData.ma_slow}`}
+                                                                                connectNulls
+                                                                            />
+                                                                        )}
+                                                                    </LineChart>
+                                                                </ResponsiveContainer>
+                                                            </div>
+                                                        </div>
+                                                    ) : null}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </>
                                 ))}
                             </tbody>
                         </table>
@@ -323,3 +495,4 @@ function OptimizePage() {
 }
 
 export default OptimizePage;
+

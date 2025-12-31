@@ -8,6 +8,9 @@ function BacktestPage() {
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedFile, setSelectedFile] = useState('');
+    const [fromOptimize, setFromOptimize] = useState(false);
+    const [optimizeInfo, setOptimizeInfo] = useState(null);
+    const [presetFileId, setPresetFileId] = useState(null); // 新增：追蹤預設檔案
 
     const [params, setParams] = useState({
         initial_cash: 100000,
@@ -25,17 +28,80 @@ function BacktestPage() {
         end_date: '',
     });
 
+    // 載入 localStorage 中的優化參數
     useEffect(() => {
+        const optimizeParams = localStorage.getItem('optimizeParams');
+        const optimizeFile = localStorage.getItem('optimizeFile');
+
+        if (optimizeParams) {
+            try {
+                const parsed = JSON.parse(optimizeParams);
+                console.log('=== 從優化頁面帶入的參數 ===', parsed);
+
+                setFromOptimize(true);
+                setOptimizeInfo({
+                    strategy_mode: parsed.strategy_mode,
+                    ma_fast: parsed.ma_fast,
+                    ma_slow: parsed.ma_slow,
+                    leverage: parsed.leverage,
+                    start_date: parsed.start_date,
+                    end_date: parsed.end_date,
+                });
+
+                setParams(prev => ({
+                    ...prev,
+                    strategy_mode: parsed.strategy_mode || prev.strategy_mode,
+                    ma_fast: parsed.ma_fast || prev.ma_fast,
+                    ma_slow: parsed.ma_slow || prev.ma_slow,
+                    leverage: parsed.leverage || prev.leverage,
+                    trade_direction: parsed.trade_direction || prev.trade_direction,
+                    initial_cash: parsed.initial_cash || prev.initial_cash,
+                    fee_rate: parsed.fee_rate !== undefined ? parsed.fee_rate : prev.fee_rate,
+                    slippage: parsed.slippage !== undefined ? parsed.slippage : prev.slippage,
+                    start_date: parsed.start_date || prev.start_date,
+                    end_date: parsed.end_date || prev.end_date,
+                }));
+                localStorage.removeItem('optimizeParams');
+            } catch (e) {
+                console.error('解析優化參數失敗:', e);
+            }
+        }
+
+        if (optimizeFile) {
+            console.log('=== 從優化頁面帶入的檔案 ===', optimizeFile);
+            setPresetFileId(optimizeFile);
+            localStorage.removeItem('optimizeFile');
+        }
+
+        // 載入檔案列表
         loadFiles();
     }, []);
+
+    // 當 files 載入後，根據 presetFileId 設定 selectedFile
+    useEffect(() => {
+        if (files.length === 0) return;
+
+        if (presetFileId) {
+            const fileExists = files.some(f => f.id === presetFileId);
+            console.log('=== 設定預設檔案 ===', presetFileId, '存在:', fileExists);
+            if (fileExists) {
+                setSelectedFile(presetFileId);
+                setPresetFileId(null); // 清除以避免重複設定
+                return;
+            }
+        }
+
+        // 若無預設檔案或找不到，且目前沒有選擇，則選第一個
+        if (!selectedFile && files.length > 0) {
+            setSelectedFile(files[0].id);
+        }
+    }, [files, presetFileId, selectedFile]);
 
     const loadFiles = async () => {
         try {
             const res = await filesApi.list();
+            console.log('=== 載入檔案列表 ===', res.data.map(f => f.id));
             setFiles(res.data);
-            if (res.data.length > 0) {
-                setSelectedFile(res.data[0].id);
-            }
         } catch (err) {
             console.error('載入檔案失敗:', err);
         }
@@ -79,6 +145,46 @@ function BacktestPage() {
                 <h1 className="page-title">⚙️ 策略設定</h1>
                 <p className="page-subtitle">配置回測參數並執行策略回測</p>
             </div>
+
+            {/* 從優化頁面帶入參數的提示 */}
+            {fromOptimize && optimizeInfo && (
+                <div style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    padding: '1rem 1.5rem',
+                    borderRadius: '12px',
+                    marginBottom: '1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '1rem'
+                }}>
+                    <div>
+                        <strong>📊 從優化結果帶入的參數：</strong>
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', opacity: 0.9 }}>
+                            策略: {optimizeInfo.strategy_mode === 'dual_ma' ? `雙均線 ${optimizeInfo.ma_fast}/${optimizeInfo.ma_slow}` :
+                                optimizeInfo.strategy_mode === 'single_ma' ? `單均線 ${optimizeInfo.ma_fast}` : '永遠做多'} |
+                            槓桿: {optimizeInfo.leverage}x |
+                            日期: {optimizeInfo.start_date || '(未設定)'} ~ {optimizeInfo.end_date || '(未設定)'}
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setFromOptimize(false)}
+                        style={{
+                            background: 'rgba(255,255,255,0.2)',
+                            border: 'none',
+                            color: 'white',
+                            padding: '0.5rem 1rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        ✕ 關閉
+                    </button>
+                </div>
+            )}
 
             <form onSubmit={handleSubmit}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>

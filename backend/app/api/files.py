@@ -122,3 +122,158 @@ async def delete_file(file_id: str) -> Dict:
         raise HTTPException(status_code=404, detail="檔案不存在")
     os.remove(file_path)
     return {"success": True, "message": f"已刪除 {file_id}"}
+
+# ==================== 資料編輯 API ====================
+
+def get_date_and_close_columns(df):
+    """取得日期和價格欄位名稱"""
+    lower_cols = [c.lower() for c in df.columns]
+    date_candidates = ["date", "日期", "data", "time"]
+    close_candidates = ["close", "收盤價", "price", "價格"]
+    
+    date_col = next((df.columns[lower_cols.index(c)] for c in date_candidates if c in lower_cols), None)
+    close_col = next((df.columns[lower_cols.index(c)] for c in close_candidates if c in lower_cols), None)
+    
+    return date_col, close_col
+
+@router.get("/{file_id}/data")
+async def get_file_data(file_id: str, limit: int = 100) -> Dict:
+    """取得檔案完整資料用於編輯"""
+    file_path = os.path.join(get_data_dir(), file_id)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="檔案不存在")
+    
+    try:
+        df = pd.read_excel(file_path)
+        date_col, close_col = get_date_and_close_columns(df)
+        
+        if not date_col or not close_col:
+            raise HTTPException(status_code=400, detail="找不到日期或價格欄位")
+        
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+        df = df.dropna(subset=[date_col, close_col]).sort_values(date_col)
+        
+        # 回傳最後 N 筆資料
+        recent_df = df.tail(limit)
+        rows = [
+            {"index": int(idx), "date": row[date_col].strftime("%Y-%m-%d"), "close": float(row[close_col])}
+            for idx, row in recent_df.iterrows()
+        ]
+        
+        return {
+            "file_id": file_id,
+            "date_column": date_col,
+            "close_column": close_col,
+            "total_rows": len(df),
+            "rows": rows
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"讀取失敗: {str(e)}")
+
+from pydantic import BaseModel
+from typing import List
+
+class DataRow(BaseModel):
+    date: str
+    close: float
+
+class AppendDataRequest(BaseModel):
+    rows: List[DataRow]
+
+@router.post("/{file_id}/append")
+async def append_data(file_id: str, request: AppendDataRequest) -> Dict:
+    """追加新資料到 Excel 檔案"""
+    file_path = os.path.join(get_data_dir(), file_id)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="檔案不存在")
+    
+    try:
+        df = pd.read_excel(file_path)
+        date_col, close_col = get_date_and_close_columns(df)
+        
+        if not date_col or not close_col:
+            raise HTTPException(status_code=400, detail="找不到日期或價格欄位")
+        
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+        
+        # 建立新資料 DataFrame
+        new_rows = []
+        for row in request.rows:
+            new_date = pd.to_datetime(row.date)
+            # 檢查日期是否已存在
+            if new_date in df[date_col].values:
+                raise HTTPException(status_code=400, detail=f"日期 {row.date} 已存在")
+            new_rows.append({date_col: new_date, close_col: row.close})
+        
+        new_df = pd.DataFrame(new_rows)
+        df = pd.concat([df, new_df], ignore_index=True)
+        df = df.sort_values(date_col).reset_index(drop=True)
+        
+        # 儲存檔案
+        df.to_excel(file_path, index=False)
+        
+        return {"success": True, "message": f"已新增 {len(request.rows)} 筆資料", "total_rows": len(df)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"新增失敗: {str(e)}")
+
+class UpdateDataRequest(BaseModel):
+    rows: List[dict]  # [{"index": 123, "date": "2025-01-01", "close": 100.0}, ...]
+
+@router.put("/{file_id}/update")
+async def update_data(file_id: str, request: UpdateDataRequest) -> Dict:
+    """更新現有資料"""
+    file_path = os.path.join(get_data_dir(), file_id)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="檔案不存在")
+    
+    try:
+        df = pd.read_excel(file_path)
+        date_col, close_col = get_date_and_close_columns(df)
+        
+        if not date_col or not close_col:
+            raise HTTPException(status_code=400, detail="找不到日期或價格欄位")
+        
+        for row in request.rows:
+            idx = row.get("index")
+            if idx is not None and idx in df.index:
+                df.at[idx, date_col] = pd.to_datetime(row["date"])
+                df.at[idx, close_col] = float(row["close"])
+        
+        df = df.sort_values(date_col).reset_index(drop=True)
+        df.to_excel(file_path, index=False)
+        
+        return {"success": True, "message": f"已更新 {len(request.rows)} 筆資料"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新失敗: {str(e)}")
+
+class DeleteRowsRequest(BaseModel):
+    indices: List[int]
+
+@router.delete("/{file_id}/rows")
+async def delete_rows(file_id: str, request: DeleteRowsRequest) -> Dict:
+    """刪除指定資料列"""
+    file_path = os.path.join(get_data_dir(), file_id)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="檔案不存在")
+    
+    try:
+        df = pd.read_excel(file_path)
+        
+        # 刪除指定的列
+        df = df.drop(index=[i for i in request.indices if i in df.index])
+        df = df.reset_index(drop=True)
+        df.to_excel(file_path, index=False)
+        
+        return {"success": True, "message": f"已刪除 {len(request.indices)} 筆資料", "total_rows": len(df)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"刪除失敗: {str(e)}")

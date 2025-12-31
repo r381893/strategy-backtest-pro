@@ -141,3 +141,64 @@ async def run_optimization(request: OptimizeRequest) -> List[OptimizeResult]:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"優化失敗: {str(e)}")
+
+# ==================== 圖表資料 API ====================
+
+class ChartRequest(BaseModel):
+    file_id: str
+    ma_fast: int = 20
+    ma_slow: Optional[int] = None
+    limit: int = 500
+
+@router.post("/chart")
+async def get_chart_data(request: ChartRequest):
+    """取得價格和均線資料用於圖表顯示"""
+    file_path = os.path.join(DATA_DIR, request.file_id)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="資料檔案不存在")
+    
+    try:
+        df = pd.read_excel(file_path)
+        lower_cols = [c.lower() for c in df.columns]
+        date_candidates = ["date", "日期", "data", "time"]
+        close_candidates = ["close", "收盤價", "price", "價格"]
+        
+        date_col = next((df.columns[lower_cols.index(c)] for c in date_candidates if c in lower_cols), None)
+        close_col = next((df.columns[lower_cols.index(c)] for c in close_candidates if c in lower_cols), None)
+        
+        if not date_col or not close_col:
+            raise HTTPException(status_code=400, detail="找不到日期或價格欄位")
+        
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+        df = df.dropna(subset=[date_col, close_col]).sort_values(date_col).reset_index(drop=True)
+        
+        # 計算均線
+        df['ma_fast'] = df[close_col].rolling(window=request.ma_fast).mean()
+        if request.ma_slow:
+            df['ma_slow'] = df[close_col].rolling(window=request.ma_slow).mean()
+        
+        # 取最後 N 筆資料
+        df = df.tail(request.limit)
+        
+        chart_data = []
+        for _, row in df.iterrows():
+            item = {
+                "date": row[date_col].strftime("%Y-%m-%d"),
+                "price": float(row[close_col]),
+                "ma_fast": float(row['ma_fast']) if pd.notna(row['ma_fast']) else None,
+            }
+            if request.ma_slow:
+                item["ma_slow"] = float(row['ma_slow']) if pd.notna(row['ma_slow']) else None
+            chart_data.append(item)
+        
+        return {
+            "file_id": request.file_id,
+            "ma_fast": request.ma_fast,
+            "ma_slow": request.ma_slow,
+            "data": chart_data
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"取得圖表資料失敗: {str(e)}")
