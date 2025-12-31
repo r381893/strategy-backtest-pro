@@ -155,6 +155,8 @@ class BacktestEngine:
                 pnl = (exit_p - entry_price) * units
                 fee = exit_p * units * params.fee_rate
                 net_pnl = pnl - fee
+                cash_after = cash + net_pnl
+                total_trade_pnl = cash_after - entry_cash  # 實際總損益
                 trades.append({
                     "direction": "做多",
                     "entry_date": entry_date.strftime("%Y-%m-%d") if entry_date else "",
@@ -162,10 +164,10 @@ class BacktestEngine:
                     "entry_price": round(entry_price, 2),
                     "exit_price": round(exit_p, 2),
                     "units": round(units, 4),
-                    "pnl": round(net_pnl, 2),
-                    "pnl_pct": round(net_pnl / entry_cash * 100, 2) if entry_cash > 0 else 0,
-                    "cash_before": round(entry_cash, 2),  # 進場時資產（正確）
-                    "cash_after": round(cash + net_pnl, 2),  # 出場後資產
+                    "pnl": round(total_trade_pnl, 2),  # 改為實際總損益
+                    "pnl_pct": round(total_trade_pnl / entry_cash * 100, 2) if entry_cash > 0 else 0,
+                    "cash_before": round(entry_cash, 2),
+                    "cash_after": round(cash_after, 2),
                     "note": ""
                 })
                 cash += net_pnl
@@ -184,6 +186,8 @@ class BacktestEngine:
                 pnl = (entry_price - exit_p) * units
                 fee = exit_p * units * params.fee_rate
                 net_pnl = pnl - fee
+                cash_after = cash + net_pnl
+                total_trade_pnl = cash_after - entry_cash  # 實際總損益
                 trades.append({
                     "direction": "做空",
                     "entry_date": entry_date.strftime("%Y-%m-%d") if entry_date else "",
@@ -191,10 +195,10 @@ class BacktestEngine:
                     "entry_price": round(entry_price, 2),
                     "exit_price": round(exit_p, 2),
                     "units": round(units, 4),
-                    "pnl": round(net_pnl, 2),
-                    "pnl_pct": round(net_pnl / entry_cash * 100, 2) if entry_cash > 0 else 0,
+                    "pnl": round(total_trade_pnl, 2),  # 改為實際總損益
+                    "pnl_pct": round(total_trade_pnl / entry_cash * 100, 2) if entry_cash > 0 else 0,
                     "cash_before": round(entry_cash, 2),
-                    "cash_after": round(cash + net_pnl, 2),
+                    "cash_after": round(cash_after, 2),
                     "note": ""
                 })
                 cash += net_pnl
