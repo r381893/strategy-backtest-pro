@@ -97,6 +97,7 @@ class BacktestEngine:
         pos = 0
         entry_price = 0.0
         entry_date = None
+        entry_cash = 0.0  # 新增：記錄進場時的資產
         units = 0.0
         equity_curve = []
         trades = []
@@ -154,7 +155,6 @@ class BacktestEngine:
                 pnl = (exit_p - entry_price) * units
                 fee = exit_p * units * params.fee_rate
                 net_pnl = pnl - fee
-                cash_before = cash  # 記錄進場時的資產
                 trades.append({
                     "direction": "做多",
                     "entry_date": entry_date.strftime("%Y-%m-%d") if entry_date else "",
@@ -163,9 +163,9 @@ class BacktestEngine:
                     "exit_price": round(exit_p, 2),
                     "units": round(units, 4),
                     "pnl": round(net_pnl, 2),
-                    "pnl_pct": round(net_pnl / cash * 100, 2) if cash > 0 else 0,
-                    "cash_before": round(cash_before, 2),  # 進場時資產
-                    "cash_after": round(cash_before + net_pnl, 2),  # 出場後資產
+                    "pnl_pct": round(net_pnl / entry_cash * 100, 2) if entry_cash > 0 else 0,
+                    "cash_before": round(entry_cash, 2),  # 進場時資產（正確）
+                    "cash_after": round(cash + net_pnl, 2),  # 出場後資產
                     "note": ""
                 })
                 cash += net_pnl
@@ -174,6 +174,7 @@ class BacktestEngine:
                 if params.trade_direction == "long_short" and cash > 0:
                     pos = -1
                     entry_price = price * (1 - params.slippage)
+                    entry_cash = cash  # 記錄進場時的資產
                     position_value = cash * params.leverage
                     units = position_value / entry_price / (1 + params.fee_rate)
                     entry_date = current_date
@@ -183,7 +184,6 @@ class BacktestEngine:
                 pnl = (entry_price - exit_p) * units
                 fee = exit_p * units * params.fee_rate
                 net_pnl = pnl - fee
-                cash_before = cash
                 trades.append({
                     "direction": "做空",
                     "entry_date": entry_date.strftime("%Y-%m-%d") if entry_date else "",
@@ -192,9 +192,9 @@ class BacktestEngine:
                     "exit_price": round(exit_p, 2),
                     "units": round(units, 4),
                     "pnl": round(net_pnl, 2),
-                    "pnl_pct": round(net_pnl / cash * 100, 2) if cash > 0 else 0,
-                    "cash_before": round(cash_before, 2),
-                    "cash_after": round(cash_before + net_pnl, 2),
+                    "pnl_pct": round(net_pnl / entry_cash * 100, 2) if entry_cash > 0 else 0,
+                    "cash_before": round(entry_cash, 2),
+                    "cash_after": round(cash + net_pnl, 2),
                     "note": ""
                 })
                 cash += net_pnl
@@ -203,6 +203,7 @@ class BacktestEngine:
                 if cash > 0:
                     pos = 1
                     entry_price = price * (1 + params.slippage)
+                    entry_cash = cash  # 記錄進場時的資產
                     position_value = cash * params.leverage
                     units = position_value / entry_price / (1 + params.fee_rate)
                     entry_date = current_date
@@ -211,12 +212,14 @@ class BacktestEngine:
                 if sig_buy:
                     pos = 1
                     entry_price = price * (1 + params.slippage)
+                    entry_cash = cash  # 記錄進場時的資產
                     position_value = cash * params.leverage
                     units = position_value / entry_price / (1 + params.fee_rate)
                     entry_date = current_date
                 elif sig_sell and params.trade_direction == "long_short":
                     pos = -1
                     entry_price = price * (1 - params.slippage)
+                    entry_cash = cash  # 記錄進場時的資產
                     position_value = cash * params.leverage
                     units = position_value / entry_price / (1 + params.fee_rate)
                     entry_date = current_date
