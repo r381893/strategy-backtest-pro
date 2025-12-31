@@ -13,8 +13,6 @@ build/
 .idea/
 
 # Data
-*.xlsx
-*.xls
 backend/data/*.json
 
 # OS
