@@ -10,7 +10,7 @@ import './index.css';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/strategy-backtest-pro">
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<DataPage />} />
