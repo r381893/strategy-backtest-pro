@@ -31,13 +31,15 @@ function StrategiesPage() {
         }
     };
 
-    const getStrategyLabel = (mode) => {
-        const labels = {
-            'buy_and_hold': '永遠做多',
-            'single_ma': '單均線',
-            'dual_ma': '雙均線',
-        };
-        return labels[mode] || mode;
+    const getStrategyLabel = (s) => {
+        if (s.strategy_type === 'dual_ma') {
+            return `雙均線 ${s.ma_fast || 20}/${s.ma_slow || 60}`;
+        } else if (s.strategy_type === 'single_ma') {
+            return `單均線 ${s.ma_fast || 20}`;
+        } else if (s.strategy_type === 'buy_and_hold') {
+            return '永遠做多';
+        }
+        return s.strategy_type || '未知';
     };
 
     return (
@@ -86,7 +88,7 @@ function StrategiesPage() {
                                 {strategies.map((s) => (
                                     <tr key={s.id}>
                                         <td style={{ fontWeight: 600 }}>{s.asset?.replace('.xlsx', '').replace('.xls', '')}</td>
-                                        <td>{getStrategyLabel(s.strategy_type)}</td>
+                                        <td>{getStrategyLabel(s)}</td>
                                         <td>{s.direction === 'long_only' ? '僅做多' : '做多做空'}</td>
                                         <td>{s.leverage}x</td>
                                         <td style={{ color: s.total_return >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>
