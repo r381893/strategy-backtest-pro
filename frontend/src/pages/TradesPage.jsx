@@ -29,10 +29,10 @@ function TradesPage() {
         : result.trades.filter(t => t.direction === filter);
 
     const handleExport = () => {
-        const headers = ['方向', '進場日', '出場日', '進場價', '出場價', '單位', '損益', '損益%', '備註'];
+        const headers = ['方向', '進場日', '出場日', '進場價', '出場價', '單位', '進場資產', '出場資產', '損益', '損益%', '備註'];
         const rows = filteredTrades.map(t => [
             t.direction, t.entry_date, t.exit_date, t.entry_price, t.exit_price,
-            t.units, t.pnl, t.pnl_pct, t.note
+            t.units, t.cash_before || '', t.cash_after || '', t.pnl, t.pnl_pct, t.note
         ]);
 
         const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -78,6 +78,8 @@ function TradesPage() {
                                 <th>進場價</th>
                                 <th>出場價</th>
                                 <th>單位</th>
+                                <th>進場資產</th>
+                                <th>出場資產</th>
                                 <th>損益</th>
                                 <th>損益 %</th>
                                 <th>備註</th>
@@ -102,14 +104,23 @@ function TradesPage() {
                                     </td>
                                     <td>{trade.entry_date}</td>
                                     <td>{trade.exit_date}</td>
-                                    <td>${trade.entry_price.toLocaleString()}</td>
-                                    <td>${trade.exit_price.toLocaleString()}</td>
-                                    <td>{trade.units.toFixed(4)}</td>
+                                    <td>${trade.entry_price?.toLocaleString()}</td>
+                                    <td>${trade.exit_price?.toLocaleString()}</td>
+                                    <td>{trade.units?.toFixed(4)}</td>
+                                    <td style={{ color: '#3498db', fontWeight: 500 }}>
+                                        ${trade.cash_before?.toLocaleString() || '-'}
+                                    </td>
+                                    <td style={{
+                                        color: trade.cash_after > trade.cash_before ? '#00b894' : '#ff7675',
+                                        fontWeight: 500
+                                    }}>
+                                        ${trade.cash_after?.toLocaleString() || '-'}
+                                    </td>
                                     <td style={{
                                         color: trade.pnl >= 0 ? '#00b894' : '#ff7675',
                                         fontWeight: 600
                                     }}>
-                                        ${trade.pnl.toLocaleString()}
+                                        ${trade.pnl?.toLocaleString()}
                                     </td>
                                     <td style={{
                                         color: trade.pnl_pct >= 0 ? '#00b894' : '#ff7675',

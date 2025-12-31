@@ -154,6 +154,7 @@ class BacktestEngine:
                 pnl = (exit_p - entry_price) * units
                 fee = exit_p * units * params.fee_rate
                 net_pnl = pnl - fee
+                cash_before = cash  # 記錄進場時的資產
                 trades.append({
                     "direction": "做多",
                     "entry_date": entry_date.strftime("%Y-%m-%d") if entry_date else "",
@@ -163,6 +164,8 @@ class BacktestEngine:
                     "units": round(units, 4),
                     "pnl": round(net_pnl, 2),
                     "pnl_pct": round(net_pnl / cash * 100, 2) if cash > 0 else 0,
+                    "cash_before": round(cash_before, 2),  # 進場時資產
+                    "cash_after": round(cash_before + net_pnl, 2),  # 出場後資產
                     "note": ""
                 })
                 cash += net_pnl
@@ -180,6 +183,7 @@ class BacktestEngine:
                 pnl = (entry_price - exit_p) * units
                 fee = exit_p * units * params.fee_rate
                 net_pnl = pnl - fee
+                cash_before = cash
                 trades.append({
                     "direction": "做空",
                     "entry_date": entry_date.strftime("%Y-%m-%d") if entry_date else "",
@@ -189,6 +193,8 @@ class BacktestEngine:
                     "units": round(units, 4),
                     "pnl": round(net_pnl, 2),
                     "pnl_pct": round(net_pnl / cash * 100, 2) if cash > 0 else 0,
+                    "cash_before": round(cash_before, 2),
+                    "cash_after": round(cash_before + net_pnl, 2),
                     "note": ""
                 })
                 cash += net_pnl
