@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { filesApi, optimizeApi } from '../services/api';
-import { Search, Trophy } from 'lucide-react';
+import { Search, Trophy, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 
 function OptimizePage() {
     const [files, setFiles] = useState([]);
     const [selectedFile, setSelectedFile] = useState('');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState([]);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const [config, setConfig] = useState({
         strategy_modes: ['buy_and_hold', 'single_ma', 'dual_ma'],
@@ -15,9 +16,27 @@ function OptimizePage() {
         leverage_range: [1.0, 2.0, 3.0],
         directions: ['long_only', 'long_short'],
         initial_cash: 100000,
+        fee_rate: 0.001,
+        slippage: 0.0005,
         top_n: 10,
         sort_by: 'sharpe_ratio',
     });
+
+    // 可選的值
+    const allStrategies = [
+        { value: 'buy_and_hold', label: '永遠做多' },
+        { value: 'single_ma', label: '單均線策略' },
+        { value: 'dual_ma', label: '雙均線策略' },
+    ];
+
+    const allDirections = [
+        { value: 'long_only', label: '僅做多' },
+        { value: 'long_short', label: '做多與做空' },
+    ];
+
+    const allMaFast = [5, 10, 20, 30, 60, 120];
+    const allMaSlow = [60, 120, 200, 240];
+    const allLeverage = [1.0, 1.5, 2.0, 2.5, 3.0];
 
     useEffect(() => {
         loadFiles();
@@ -49,6 +68,61 @@ function OptimizePage() {
         setLoading(false);
     };
 
+    const toggleStrategy = (value) => {
+        const current = config.strategy_modes;
+        if (current.includes(value)) {
+            if (current.length > 1) {
+                setConfig({ ...config, strategy_modes: current.filter(v => v !== value) });
+            }
+        } else {
+            setConfig({ ...config, strategy_modes: [...current, value] });
+        }
+    };
+
+    const toggleDirection = (value) => {
+        const current = config.directions;
+        if (current.includes(value)) {
+            if (current.length > 1) {
+                setConfig({ ...config, directions: current.filter(v => v !== value) });
+            }
+        } else {
+            setConfig({ ...config, directions: [...current, value] });
+        }
+    };
+
+    const toggleMaFast = (value) => {
+        const current = config.ma_fast_range;
+        if (current.includes(value)) {
+            if (current.length > 1) {
+                setConfig({ ...config, ma_fast_range: current.filter(v => v !== value) });
+            }
+        } else {
+            setConfig({ ...config, ma_fast_range: [...current, value].sort((a, b) => a - b) });
+        }
+    };
+
+    const toggleMaSlow = (value) => {
+        const current = config.ma_slow_range;
+        if (current.includes(value)) {
+            if (current.length > 1) {
+                setConfig({ ...config, ma_slow_range: current.filter(v => v !== value) });
+            }
+        } else {
+            setConfig({ ...config, ma_slow_range: [...current, value].sort((a, b) => a - b) });
+        }
+    };
+
+    const toggleLeverage = (value) => {
+        const current = config.leverage_range;
+        if (current.includes(value)) {
+            if (current.length > 1) {
+                setConfig({ ...config, leverage_range: current.filter(v => v !== value) });
+            }
+        } else {
+            setConfig({ ...config, leverage_range: [...current, value].sort((a, b) => a - b) });
+        }
+    };
+
     const sortOptions = [
         { value: 'sharpe_ratio', label: 'Sharpe Ratio' },
         { value: 'total_return', label: '總報酬率' },
@@ -57,13 +131,21 @@ function OptimizePage() {
     ];
 
     const getStrategyLabel = (mode) => {
-        const labels = {
-            'buy_and_hold': '永遠做多',
-            'single_ma': '單均線',
-            'dual_ma': '雙均線',
-        };
+        const labels = { 'buy_and_hold': '永遠做多', 'single_ma': '單均線', 'dual_ma': '雙均線' };
         return labels[mode] || mode;
     };
+
+    const chipStyle = (active) => ({
+        padding: '0.5rem 1rem',
+        borderRadius: '20px',
+        border: active ? '2px solid #667eea' : '2px solid #e0e6ed',
+        background: active ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white',
+        color: active ? 'white' : '#2c3e50',
+        cursor: 'pointer',
+        fontWeight: 500,
+        fontSize: '0.875rem',
+        transition: 'all 0.2s ease',
+    });
 
     return (
         <div>
@@ -73,68 +155,122 @@ function OptimizePage() {
             </div>
 
             <div className="card">
-                <h3 className="card-title">⚙️ 優化設定</h3>
+                <h3 className="card-title">⚙️ 基本設定</h3>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                     <div className="form-group">
                         <label className="form-label">資料檔案</label>
-                        <select
-                            className="form-select"
-                            value={selectedFile}
-                            onChange={(e) => setSelectedFile(e.target.value)}
-                        >
-                            {files.map(f => (
-                                <option key={f.id} value={f.id}>{f.name}</option>
-                            ))}
+                        <select className="form-select" value={selectedFile} onChange={(e) => setSelectedFile(e.target.value)}>
+                            {files.map(f => (<option key={f.id} value={f.id}>{f.name}</option>))}
                         </select>
                     </div>
 
                     <div className="form-group">
                         <label className="form-label">初始資金</label>
-                        <input
-                            type="number"
-                            className="form-input"
-                            value={config.initial_cash}
-                            onChange={(e) => setConfig({ ...config, initial_cash: Number(e.target.value) })}
-                        />
+                        <input type="number" className="form-input" value={config.initial_cash}
+                            onChange={(e) => setConfig({ ...config, initial_cash: Number(e.target.value) })} />
                     </div>
 
                     <div className="form-group">
                         <label className="form-label">顯示前 N 名</label>
-                        <input
-                            type="number"
-                            className="form-input"
-                            value={config.top_n}
-                            onChange={(e) => setConfig({ ...config, top_n: Number(e.target.value) })}
-                        />
+                        <input type="number" className="form-input" value={config.top_n}
+                            onChange={(e) => setConfig({ ...config, top_n: Number(e.target.value) })} />
                     </div>
 
                     <div className="form-group">
                         <label className="form-label">排序依據</label>
-                        <select
-                            className="form-select"
-                            value={config.sort_by}
-                            onChange={(e) => setConfig({ ...config, sort_by: e.target.value })}
-                        >
-                            {sortOptions.map(o => (
-                                <option key={o.value} value={o.value}>{o.label}</option>
-                            ))}
+                        <select className="form-select" value={config.sort_by} onChange={(e) => setConfig({ ...config, sort_by: e.target.value })}>
+                            {sortOptions.map(o => (<option key={o.value} value={o.value}>{o.label}</option>))}
                         </select>
                     </div>
                 </div>
 
+                {/* 策略類型選擇 */}
+                <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                    <label className="form-label">策略類型</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {allStrategies.map(s => (
+                            <span key={s.value} style={chipStyle(config.strategy_modes.includes(s.value))}
+                                onClick={() => toggleStrategy(s.value)}>{s.label}</span>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 交易方向選擇 */}
+                <div className="form-group" style={{ marginTop: '1rem' }}>
+                    <label className="form-label">交易方向</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {allDirections.map(d => (
+                            <span key={d.value} style={chipStyle(config.directions.includes(d.value))}
+                                onClick={() => toggleDirection(d.value)}>{d.label}</span>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 進階設定切換 */}
+                <div style={{ marginTop: '1.5rem', borderTop: '1px solid #e0e6ed', paddingTop: '1rem' }}>
+                    <button onClick={() => setShowAdvanced(!showAdvanced)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#667eea', fontWeight: 600 }}>
+                        <Settings size={18} />
+                        進階參數設定
+                        {showAdvanced ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+
+                    {showAdvanced && (
+                        <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '12px' }}>
+                            {/* 快線範圍 */}
+                            <div className="form-group">
+                                <label className="form-label">快線 MA 天數</label>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {allMaFast.map(v => (
+                                        <span key={v} style={chipStyle(config.ma_fast_range.includes(v))}
+                                            onClick={() => toggleMaFast(v)}>{v}</span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* 慢線範圍 */}
+                            <div className="form-group" style={{ marginTop: '1rem' }}>
+                                <label className="form-label">慢線 MA 天數</label>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {allMaSlow.map(v => (
+                                        <span key={v} style={chipStyle(config.ma_slow_range.includes(v))}
+                                            onClick={() => toggleMaSlow(v)}>{v}</span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* 槓桿範圍 */}
+                            <div className="form-group" style={{ marginTop: '1rem' }}>
+                                <label className="form-label">槓桿倍數</label>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {allLeverage.map(v => (
+                                        <span key={v} style={chipStyle(config.leverage_range.includes(v))}
+                                            onClick={() => toggleLeverage(v)}>{v}x</span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* 手續費與滑價 */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                                <div className="form-group">
+                                    <label className="form-label">手續費率 (%)</label>
+                                    <input type="number" step="0.01" className="form-input" value={config.fee_rate * 100}
+                                        onChange={(e) => setConfig({ ...config, fee_rate: Number(e.target.value) / 100 })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">滑價 (%)</label>
+                                    <input type="number" step="0.01" className="form-input" value={config.slippage * 100}
+                                        onChange={(e) => setConfig({ ...config, slippage: Number(e.target.value) / 100 })} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-                    <button
-                        className="btn btn-success"
-                        onClick={handleOptimize}
-                        disabled={loading}
-                        style={{ padding: '0.875rem 2rem' }}
-                    >
-                        {loading ? (
-                            <><div className="spinner" style={{ width: 20, height: 20 }}></div> 優化中...</>
-                        ) : (
-                            <><Search size={20} /> 開始優化</>
-                        )}
+                    <button className="btn btn-success" onClick={handleOptimize} disabled={loading} style={{ padding: '0.875rem 2rem' }}>
+                        {loading ? (<><div className="spinner" style={{ width: 20, height: 20 }}></div> 優化中...</>) : (<><Search size={20} /> 開始優化</>)}
                     </button>
                 </div>
             </div>
@@ -150,17 +286,8 @@ function OptimizePage() {
                         <table>
                             <thead>
                                 <tr>
-                                    <th>排名</th>
-                                    <th>策略</th>
-                                    <th>方向</th>
-                                    <th>均線</th>
-                                    <th>槓桿</th>
-                                    <th>總報酬</th>
-                                    <th>CAGR</th>
-                                    <th>MDD</th>
-                                    <th>Sharpe</th>
-                                    <th>Calmar</th>
-                                    <th>勝率</th>
+                                    <th>排名</th><th>策略</th><th>方向</th><th>均線</th><th>槓桿</th>
+                                    <th>總報酬</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Calmar</th><th>勝率</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -168,33 +295,18 @@ function OptimizePage() {
                                     <tr key={i}>
                                         <td>
                                             <span style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                width: 28,
-                                                height: 28,
-                                                borderRadius: '50%',
+                                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                width: 28, height: 28, borderRadius: '50%',
                                                 background: i === 0 ? '#f39c12' : i === 1 ? '#95a5a6' : i === 2 ? '#cd6133' : '#e0e6ed',
-                                                color: i < 3 ? 'white' : '#2c3e50',
-                                                fontWeight: 600,
-                                                fontSize: '0.875rem',
-                                            }}>
-                                                {i + 1}
-                                            </span>
+                                                color: i < 3 ? 'white' : '#2c3e50', fontWeight: 600, fontSize: '0.875rem',
+                                            }}>{i + 1}</span>
                                         </td>
                                         <td>{getStrategyLabel(r.strategy_type)}</td>
                                         <td>{r.direction === 'long_only' ? '僅做多' : '做多做空'}</td>
-                                        <td>
-                                            {r.strategy_type === 'buy_and_hold' ? '-' :
-                                                r.ma_slow ? `${r.ma_fast}/${r.ma_slow}` : r.ma_fast}
-                                        </td>
+                                        <td>{r.strategy_type === 'buy_and_hold' ? '-' : r.ma_slow ? `${r.ma_fast}/${r.ma_slow}` : r.ma_fast}</td>
                                         <td>{r.leverage}x</td>
-                                        <td style={{ color: r.total_return >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>
-                                            {r.total_return}%
-                                        </td>
-                                        <td style={{ color: r.cagr >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>
-                                            {r.cagr}%
-                                        </td>
+                                        <td style={{ color: r.total_return >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>{r.total_return}%</td>
+                                        <td style={{ color: r.cagr >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>{r.cagr}%</td>
                                         <td style={{ color: '#ff7675' }}>{r.mdd}%</td>
                                         <td style={{ fontWeight: 600 }}>{r.sharpe_ratio.toFixed(2)}</td>
                                         <td>{r.calmar_ratio.toFixed(2)}</td>
