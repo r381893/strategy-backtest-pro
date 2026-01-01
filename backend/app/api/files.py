@@ -4,19 +4,37 @@ from typing import List, Dict
 import pandas as pd
 import os
 from datetime import datetime
+import time
 
 router = APIRouter()
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+
+# 快取機制
+_file_cache: Dict = {}
+_cache_timestamp: float = 0
+CACHE_TTL_SECONDS = 300  # 快取 5 分鐘
 
 def get_data_dir():
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
     return DATA_DIR
 
+def invalidate_cache():
+    """清除快取"""
+    global _file_cache, _cache_timestamp
+    _file_cache = {}
+    _cache_timestamp = 0
+
 @router.get("")
 async def list_files() -> List[Dict]:
-    """取得所有資料檔案列表"""
+    """取得所有資料檔案列表（含快取）"""
+    global _file_cache, _cache_timestamp
+    
+    # 檢查快取是否有效
+    if _file_cache and (time.time() - _cache_timestamp) < CACHE_TTL_SECONDS:
+        return _file_cache.get("files", [])
+    
     data_dir = get_data_dir()
     files = []
     date_candidates = ["date", "日期", "data", "time"]
@@ -25,6 +43,7 @@ async def list_files() -> List[Dict]:
         if filename.endswith('.xlsx') or filename.endswith('.xls'):
             file_path = os.path.join(data_dir, filename)
             try:
+                # 優化：只讀取前100列和後100列來判斷日期範圍
                 df = pd.read_excel(file_path)
                 lower_cols = [c.lower() for c in df.columns]
                 date_col = next((df.columns[lower_cols.index(c)] for c in date_candidates if c in lower_cols), None)
@@ -52,7 +71,13 @@ async def list_files() -> List[Dict]:
                     "days_ago": None, "status": "error", "error": str(e)
                 })
     
-    return sorted(files, key=lambda x: x['name'])
+    result = sorted(files, key=lambda x: x['name'])
+    
+    # 儲存快取
+    _file_cache = {"files": result}
+    _cache_timestamp = time.time()
+    
+    return result
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)) -> Dict:
@@ -68,6 +93,7 @@ async def upload_file(file: UploadFile = File(...)) -> Dict:
         with open(file_path, 'wb') as f:
             f.write(contents)
         df = pd.read_excel(file_path)
+        invalidate_cache()  # 清除快取
         return {"success": True, "filename": file.filename, "row_count": len(df), "columns": list(df.columns)}
     except Exception as e:
         if os.path.exists(file_path):
@@ -121,6 +147,7 @@ async def delete_file(file_id: str) -> Dict:
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="檔案不存在")
     os.remove(file_path)
+    invalidate_cache()  # 清除快取
     return {"success": True, "message": f"已刪除 {file_id}"}
 
 # ==================== 資料編輯 API ====================
