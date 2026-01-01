@@ -17,3 +17,7 @@ backend/data/*.json
 
 # OS
 .DS_Store
+
+# Firebase credentials (DO NOT COMMIT!)
+backend/firebase-credentials.json
+backend/firebase-credentials-base64.txt

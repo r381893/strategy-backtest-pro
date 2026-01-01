@@ -6,6 +6,13 @@ from datetime import datetime
 import json
 import os
 
+# 嘗試載入 Firebase
+try:
+    from app.core.firebase_config import init_firebase, get_firebase_ref
+    FIREBASE_AVAILABLE = init_firebase()
+except ImportError:
+    FIREBASE_AVAILABLE = False
+
 router = APIRouter()
 STRATEGIES_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "strategies.json")
 
@@ -16,6 +23,8 @@ class Strategy(BaseModel):
     strategy_type: str
     direction: str
     ma_period: int
+    ma_fast: Optional[int] = None
+    ma_slow: Optional[int] = None
     leverage: float
     total_return: float
     cagr: float
@@ -27,6 +36,17 @@ class Strategy(BaseModel):
     params: Optional[Dict] = None
 
 def load_strategies() -> Dict:
+    """載入策略 - 優先使用 Firebase，備用本地 JSON"""
+    if FIREBASE_AVAILABLE:
+        try:
+            ref = get_firebase_ref('strategies')
+            if ref:
+                data = ref.get()
+                return data if data else {}
+        except Exception as e:
+            print(f"Firebase 讀取失敗: {e}")
+    
+    # 備用：本地 JSON
     if os.path.exists(STRATEGIES_FILE):
         try:
             with open(STRATEGIES_FILE, 'r', encoding='utf-8') as f:
@@ -36,9 +56,24 @@ def load_strategies() -> Dict:
     return {}
 
 def save_strategies(strategies: Dict):
-    os.makedirs(os.path.dirname(STRATEGIES_FILE), exist_ok=True)
-    with open(STRATEGIES_FILE, 'w', encoding='utf-8') as f:
-        json.dump(strategies, f, ensure_ascii=False, indent=2)
+    """儲存策略 - 同時寫入 Firebase 和本地 JSON"""
+    # 寫入 Firebase
+    if FIREBASE_AVAILABLE:
+        try:
+            ref = get_firebase_ref('strategies')
+            if ref:
+                ref.set(strategies)
+                print("[OK] Strategy saved to Firebase")
+        except Exception as e:
+            print(f"Firebase 寫入失敗: {e}")
+    
+    # 同時寫入本地 JSON（備用）
+    try:
+        os.makedirs(os.path.dirname(STRATEGIES_FILE), exist_ok=True)
+        with open(STRATEGIES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(strategies, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"本地 JSON 寫入失敗: {e}")
 
 @router.get("")
 async def list_strategies() -> List[Dict]:
@@ -68,3 +103,4 @@ async def delete_strategy(strategy_id: str) -> Dict:
     del strategies[strategy_id]
     save_strategies(strategies)
     return {"success": True}
+
