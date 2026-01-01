@@ -22,12 +22,14 @@ function StrategiesPage() {
     };
 
     const handleDelete = async (id) => {
-        if (!confirm('確定要刪除這個策略嗎？')) return;
+        if (!window.confirm('確定要刪除這個策略嗎？')) return;
         try {
             await strategiesApi.delete(id);
+            alert('刪除成功！');
             loadStrategies();
         } catch (err) {
-            alert('刪除失敗');
+            console.error('Delete error:', err);
+            alert('刪除失敗: ' + (err.response?.data?.detail || err.message));
         }
     };
 
