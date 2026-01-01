@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import json
 import os
 
@@ -96,7 +96,7 @@ async def save_strategy(strategy: Strategy) -> Dict:
     strategy_id = strategy_id.replace(".", "_").replace("#", "").replace("$", "").replace("[", "").replace("]", "")
     strategy_data = strategy.dict()
     strategy_data['id'] = strategy_id
-    strategy_data['created_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    strategy_data['created_at'] = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%d %H:%M:%S')
     strategies[strategy_id] = strategy_data
     save_strategies(strategies)
     return {"success": True, "id": strategy_id}
