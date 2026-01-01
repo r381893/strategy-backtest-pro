@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
     Database, Settings, BarChart3, FileText,
-    Search, Save, TrendingUp
+    Search, Save, TrendingUp, Menu, X
 } from 'lucide-react';
 
 const navItems = [
@@ -14,9 +15,37 @@ const navItems = [
 ];
 
 function Layout() {
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const handleNavClick = () => {
+        setMenuOpen(false);
+    };
+
     return (
         <div className="app">
-            <aside className="sidebar">
+            {/* 手機版漢堡選單按鈕 */}
+            <button
+                className="mobile-menu-btn mobile-only"
+                onClick={() => setMenuOpen(!menuOpen)}
+                style={{
+                    position: 'fixed',
+                    top: '1rem',
+                    left: '1rem',
+                    zIndex: 1001,
+                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '0.75rem',
+                    color: 'white',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                }}
+            >
+                {menuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+
+            {/* 側邊欄 */}
+            <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
                 <div className="logo">
                     <TrendingUp size={28} />
                     <span>回測系統 Pro</span>
@@ -27,6 +56,7 @@ function Layout() {
                             key={path}
                             to={path}
                             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                            onClick={handleNavClick}
                         >
                             <Icon size={20} />
                             <span>{label}</span>
@@ -34,6 +64,24 @@ function Layout() {
                     ))}
                 </nav>
             </aside>
+
+            {/* 遮罩層 */}
+            {menuOpen && (
+                <div
+                    className="sidebar-overlay mobile-only"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0,0,0,0.5)',
+                        zIndex: 998
+                    }}
+                />
+            )}
+
             <main className="main-content">
                 <Outlet />
             </main>

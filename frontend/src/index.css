@@ -298,7 +298,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   padding: 1rem;
   text-align: left;
   border-bottom: 1px solid #eee;
@@ -340,7 +341,9 @@ tr:hover {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 分頁標籤 */
@@ -385,27 +388,36 @@ tr:hover {
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 1rem;
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 260px;
+    height: 100vh;
+    z-index: 999;
+    flex-direction: column;
+    padding: 4rem 1rem 1rem;
+    transition: left 0.3s ease;
+  }
+
+  .sidebar.sidebar-open {
+    left: 0;
   }
 
   .main-content {
     margin-left: 0;
     padding: 1rem;
+    padding-top: 4rem;
   }
 
   .logo {
     width: 100%;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
   }
 
   .nav-item {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
   }
 
   .desktop-only {
@@ -417,19 +429,30 @@ tr:hover {
   }
 
   .page-header {
-    padding: 1.25rem;
+    padding: 1rem;
   }
 
   .page-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.85rem;
   }
 
   .card {
-    padding: 1rem;
+    padding: 0.875rem;
+  }
+
+  .card-title {
+    font-size: 1rem;
   }
 
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-}
 
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+}
