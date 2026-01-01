@@ -49,10 +49,10 @@ function OptimizePage() {
     const allLeverage = [1.0, 1.5, 2.0, 2.5, 3.0];
 
     useEffect(() => {
-        loadFiles();
-        // 載入上次的優化結果
-        const savedResults = localStorage.getItem('optimizeResults');
+        // 先載入上次的選擇
         const savedFile = localStorage.getItem('optimizeSelectedFile');
+        const savedResults = localStorage.getItem('optimizeResults');
+
         if (savedResults) {
             try {
                 setResults(JSON.parse(savedResults));
@@ -60,16 +60,22 @@ function OptimizePage() {
                 console.error('載入上次結果失敗');
             }
         }
-        if (savedFile) {
-            setSelectedFile(savedFile);
-        }
+
+        // 載入檔案列表，並傳入已儲存的檔案 ID
+        loadFiles(savedFile);
     }, []);
 
-    const loadFiles = async () => {
+    const loadFiles = async (preferredFileId = null) => {
         try {
             const res = await filesApi.list();
             setFiles(res.data);
-            if (res.data.length > 0) setSelectedFile(res.data[0].id);
+
+            // 優先使用傳入的檔案 ID，否則用第一個
+            if (preferredFileId && res.data.some(f => f.id === preferredFileId)) {
+                setSelectedFile(preferredFileId);
+            } else if (res.data.length > 0) {
+                setSelectedFile(res.data[0].id);
+            }
         } catch (err) {
             console.error('載入檔案失敗');
         }
