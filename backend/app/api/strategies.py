@@ -87,8 +87,11 @@ async def list_strategies() -> List[Dict]:
 @router.post("")
 async def save_strategy(strategy: Strategy) -> Dict:
     strategies = load_strategies()
-    # 生成 Firebase 相容的 ID（移除 . # $ [ ] / 等非法字元）
-    strategy_id = f"{strategy.asset}_{strategy.backtest_period}"
+    # 生成 Firebase 相容的 ID（包含策略類型和參數，避免覆蓋）
+    # 格式: asset_strategyType_maFast_maSlow_leverage_period
+    ma_info = f"{strategy.ma_fast or 0}_{strategy.ma_slow or strategy.ma_period}"
+    strategy_id = f"{strategy.asset}_{strategy.strategy_type}_{ma_info}_{strategy.leverage}x_{strategy.backtest_period}"
+    # 移除 Firebase 非法字元
     strategy_id = strategy_id.replace(" ", "").replace("~", "_").replace("/", "-")
     strategy_id = strategy_id.replace(".", "_").replace("#", "").replace("$", "").replace("[", "").replace("]", "")
     strategy_data = strategy.dict()
