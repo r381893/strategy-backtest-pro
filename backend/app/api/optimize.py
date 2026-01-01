@@ -4,11 +4,15 @@ from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.core.backtest_engine import BacktestEngine, BacktestParams
 
 router = APIRouter()
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+
+# 平行處理的最大線程數
+MAX_WORKERS = 4
 
 class OptimizeRequest(BaseModel):
     file_id: str
@@ -39,9 +43,33 @@ class OptimizeResult(BaseModel):
     total_trades: int
     win_rate: float
 
+
+def run_single_backtest(engine: BacktestEngine, params: BacktestParams, strategy_type: str, 
+                        direction: str, ma_fast: int, ma_slow: Optional[int], leverage: float):
+    """執行單次回測並返回結果"""
+    try:
+        result = engine.run(params)
+        return OptimizeResult(
+            strategy_type=strategy_type,
+            direction=direction,
+            ma_fast=ma_fast,
+            ma_slow=ma_slow,
+            leverage=leverage,
+            total_return=result.total_return,
+            cagr=result.cagr,
+            mdd=result.mdd,
+            sharpe_ratio=result.sharpe_ratio,
+            calmar_ratio=result.calmar_ratio,
+            total_trades=result.total_trades,
+            win_rate=result.win_rate
+        )
+    except Exception:
+        return None
+
+
 @router.post("/run")
 async def run_optimization(request: OptimizeRequest) -> List[OptimizeResult]:
-    """執行參數優化"""
+    """執行參數優化 - 使用平行處理加速"""
     file_path = os.path.join(DATA_DIR, request.file_id)
     
     if not os.path.exists(file_path):
@@ -63,7 +91,9 @@ async def run_optimization(request: OptimizeRequest) -> List[OptimizeResult]:
         df = df.dropna(subset=[date_col, close_col]).sort_values(date_col).reset_index(drop=True)
         
         engine = BacktestEngine(df, date_col, close_col)
-        results = []
+        
+        # 建立所有待執行的任務
+        tasks = []
         
         for strategy_mode in request.strategy_modes:
             for direction in request.directions:
@@ -76,18 +106,8 @@ async def run_optimization(request: OptimizeRequest) -> List[OptimizeResult]:
                             trade_direction="long_only",
                             start_date=request.start_date, end_date=request.end_date
                         )
-                        try:
-                            result = engine.run(params)
-                            results.append(OptimizeResult(
-                                strategy_type=strategy_mode, direction="long_only",
-                                ma_fast=0, ma_slow=None, leverage=leverage,
-                                total_return=result.total_return, cagr=result.cagr,
-                                mdd=result.mdd, sharpe_ratio=result.sharpe_ratio,
-                                calmar_ratio=result.calmar_ratio,
-                                total_trades=result.total_trades, win_rate=result.win_rate
-                            ))
-                        except:
-                            pass
+                        tasks.append((params, strategy_mode, "long_only", 0, None, leverage))
+                        
                     elif strategy_mode == "single_ma":
                         for ma_fast in request.ma_fast_range:
                             params = BacktestParams(
@@ -97,19 +117,9 @@ async def run_optimization(request: OptimizeRequest) -> List[OptimizeResult]:
                                 trade_direction=direction,
                                 start_date=request.start_date, end_date=request.end_date
                             )
-                            try:
-                                result = engine.run(params)
-                                results.append(OptimizeResult(
-                                    strategy_type=strategy_mode, direction=direction,
-                                    ma_fast=ma_fast, ma_slow=None, leverage=leverage,
-                                    total_return=result.total_return, cagr=result.cagr,
-                                    mdd=result.mdd, sharpe_ratio=result.sharpe_ratio,
-                                    calmar_ratio=result.calmar_ratio,
-                                    total_trades=result.total_trades, win_rate=result.win_rate
-                                ))
-                            except:
-                                pass
-                    else:
+                            tasks.append((params, strategy_mode, direction, ma_fast, None, leverage))
+                            
+                    else:  # dual_ma
                         for ma_fast in request.ma_fast_range:
                             for ma_slow in request.ma_slow_range:
                                 if ma_slow <= ma_fast:
@@ -121,18 +131,20 @@ async def run_optimization(request: OptimizeRequest) -> List[OptimizeResult]:
                                     trade_direction=direction,
                                     start_date=request.start_date, end_date=request.end_date
                                 )
-                                try:
-                                    result = engine.run(params)
-                                    results.append(OptimizeResult(
-                                        strategy_type=strategy_mode, direction=direction,
-                                        ma_fast=ma_fast, ma_slow=ma_slow, leverage=leverage,
-                                        total_return=result.total_return, cagr=result.cagr,
-                                        mdd=result.mdd, sharpe_ratio=result.sharpe_ratio,
-                                        calmar_ratio=result.calmar_ratio,
-                                        total_trades=result.total_trades, win_rate=result.win_rate
-                                    ))
-                                except:
-                                    pass
+                                tasks.append((params, strategy_mode, direction, ma_fast, ma_slow, leverage))
+        
+        # 使用平行處理執行所有回測
+        results = []
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = {
+                executor.submit(run_single_backtest, engine, *task): task 
+                for task in tasks
+            }
+            
+            for future in as_completed(futures):
+                result = future.result()
+                if result is not None:
+                    results.append(result)
         
         results.sort(key=lambda x: getattr(x, request.sort_by), reverse=True)
         return results[:request.top_n]
