@@ -9,13 +9,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS 設定
+# CORS 設定 - 明確列出允許的 origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://r381893.github.io",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # 註冊路由
