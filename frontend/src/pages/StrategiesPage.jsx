@@ -75,10 +75,10 @@ function StrategiesPage() {
                                     <th>策略</th>
                                     <th>方向</th>
                                     <th>槓桿</th>
-                                    <th>總報酬</th>
-                                    <th>CAGR</th>
-                                    <th>MDD</th>
-                                    <th>Sharpe</th>
+                                    <th title="投資期間的總收益百分比">總報酬 ⓘ</th>
+                                    <th title="複合年均成長率">年化報酬 ⓘ</th>
+                                    <th title="從最高點到最低點的最大跌幅">最大回撤 ⓘ</th>
+                                    <th title="風險調整後報酬">夏普比率 ⓘ</th>
                                     <th>回測區間</th>
                                     <th>儲存時間</th>
                                     <th>操作</th>

@@ -28,8 +28,8 @@ function OptimizePage() {
         slippage: 0.0005,
         top_n: 10,
         sort_by: 'sharpe_ratio',
-        start_date: '',
-        end_date: '',
+        start_date: '2015-01-01',
+        end_date: new Date().toISOString().split('T')[0], // 今天
     });
 
     // 可選的值
@@ -364,7 +364,12 @@ function OptimizePage() {
                             <thead>
                                 <tr>
                                     <th>排名</th><th>策略</th><th>方向</th><th>均線</th><th>槓桿</th>
-                                    <th>總報酬</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Calmar</th><th>勝率</th>
+                                    <th title="投資期間的總收益百分比">總報酬 ⓘ</th>
+                                    <th title="複合年均成長率，將總報酬換算成每年平均報酬">年化報酬 ⓘ</th>
+                                    <th title="從最高點到最低點的最大跌幅">最大回撤 ⓘ</th>
+                                    <th title="風險調整後報酬，>1 表示每承擔 1 單位風險獲得 >1 單位報酬">夏普 ⓘ</th>
+                                    <th title="年化報酬除以最大回撤，衡量報酬與風險的關係">卡瑪 ⓘ</th>
+                                    <th title="獲利交易佔總交易的百分比">勝率 ⓘ</th>
                                     <th style={{ width: '140px' }}>操作</th>
                                 </tr>
                             </thead>

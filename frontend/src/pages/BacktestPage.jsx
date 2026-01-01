@@ -24,8 +24,8 @@ function BacktestPage() {
         enable_rebalance: true,
         enable_yield: false,
         annual_yield: 0.04,
-        start_date: '',
-        end_date: '',
+        start_date: '2015-01-01',
+        end_date: new Date().toISOString().split('T')[0], // 今天
     });
 
     // 載入 localStorage 中的優化參數

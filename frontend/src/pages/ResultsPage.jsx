@@ -57,15 +57,15 @@ function ResultsPage() {
     }
 
     const metrics = [
-        { label: '總報酬率', value: `${result.total_return}%`, positive: result.total_return >= 0 },
-        { label: 'CAGR', value: `${result.cagr}%`, positive: result.cagr >= 0 },
-        { label: '最大回撤', value: `${result.mdd}%`, positive: false },
-        { label: 'Sharpe Ratio', value: result.sharpe_ratio.toFixed(2), positive: result.sharpe_ratio >= 1 },
-        { label: 'Sortino Ratio', value: result.sortino_ratio.toFixed(2), positive: result.sortino_ratio >= 1 },
-        { label: 'Calmar Ratio', value: result.calmar_ratio.toFixed(2), positive: result.calmar_ratio >= 1 },
-        { label: '總交易筆數', value: result.total_trades, positive: true },
-        { label: '勝率', value: `${result.win_rate}%`, positive: result.win_rate >= 50 },
-        { label: '獲利因子', value: result.profit_factor.toFixed(2), positive: result.profit_factor >= 1 },
+        { label: '總報酬率', value: `${result.total_return}%`, positive: result.total_return >= 0, tooltip: '投資期間的總收益百分比' },
+        { label: '年化報酬率 (CAGR)', value: `${result.cagr}%`, positive: result.cagr >= 0, tooltip: '複合年均成長率，將總報酬換算成每年平均報酬' },
+        { label: '最大回撤 (MDD)', value: `${result.mdd}%`, positive: false, tooltip: '從最高點到最低點的最大跌幅，衡量最壞情況的虧損' },
+        { label: '夏普比率', value: result.sharpe_ratio.toFixed(2), positive: result.sharpe_ratio >= 1, tooltip: '風險調整後報酬，>1 表示每承擔 1 單位風險獲得 >1 單位報酬' },
+        { label: '索提諾比率', value: result.sortino_ratio.toFixed(2), positive: result.sortino_ratio >= 1, tooltip: '只考慮下行風險的報酬比率，比夏普更關注虧損' },
+        { label: '卡瑪比率', value: result.calmar_ratio.toFixed(2), positive: result.calmar_ratio >= 1, tooltip: '年化報酬除以最大回撤，衡量報酬與風險的關係' },
+        { label: '總交易筆數', value: result.total_trades, positive: true, tooltip: '回測期間的總交易次數' },
+        { label: '勝率', value: `${result.win_rate}%`, positive: result.win_rate >= 50, tooltip: '獲利交易佔總交易的百分比' },
+        { label: '獲利因子', value: result.profit_factor.toFixed(2), positive: result.profit_factor >= 1, tooltip: '總獲利除以總虧損，>1 表示賺的比虧的多' },
     ];
 
     return (
@@ -80,8 +80,11 @@ function ResultsPage() {
             {/* 績效指標 */}
             <div className="metrics-grid" style={{ marginBottom: '1.5rem' }}>
                 {metrics.map((m, i) => (
-                    <div key={i} className="metric-card">
-                        <div className="metric-label">{m.label}</div>
+                    <div key={i} className="metric-card" title={m.tooltip} style={{ cursor: 'help' }}>
+                        <div className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            {m.label}
+                            <span style={{ fontSize: '0.7rem', color: '#95a5a6' }}>ⓘ</span>
+                        </div>
                         <div className={`metric-value ${m.positive ? 'positive' : 'negative'}`}>
                             {m.value}
                         </div>
