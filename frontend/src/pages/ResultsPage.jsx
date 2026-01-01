@@ -26,6 +26,8 @@ function ResultsPage() {
                 strategy_type: params.strategy_mode,
                 direction: params.trade_direction,
                 ma_period: params.ma_fast,
+                ma_fast: params.ma_fast,
+                ma_slow: params.ma_slow,
                 leverage: params.leverage,
                 total_return: result.total_return,
                 cagr: result.cagr,
