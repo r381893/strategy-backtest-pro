@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { strategiesApi } from '../services/api';
-import { Trash2, RefreshCw, Bookmark } from 'lucide-react';
+import { Trash2, RefreshCw, Bookmark, Play } from 'lucide-react';
 
 function StrategiesPage() {
+    const navigate = useNavigate();
     const [strategies, setStrategies] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -42,6 +44,36 @@ function StrategiesPage() {
             return '永遠做多';
         }
         return s.strategy_type || '未知';
+    };
+
+    // 點擊策略重跑回測
+    const handleRunStrategy = (s) => {
+        // 解析回測期間
+        const periodParts = s.backtest_period?.split(' ~ ') || [];
+        const startDate = periodParts[0] || '2015-01-01';
+        const endDate = periodParts[1] || new Date().toISOString().split('T')[0];
+
+        // 構建參數
+        const params = {
+            strategy_mode: s.strategy_type,
+            ma_fast: s.ma_fast || 20,
+            ma_slow: s.ma_slow || 60,
+            leverage: s.leverage || 2,
+            trade_direction: s.direction || 'long_only',
+            start_date: startDate,
+            end_date: endDate,
+            initial_cash: 100000,
+            fee_rate: 0.001,
+            slippage: 0.0005,
+            ...s.params  // 如果有保存的完整參數，覆蓋上面的預設值
+        };
+
+        // 存入 localStorage
+        localStorage.setItem('optimizeParams', JSON.stringify(params));
+        localStorage.setItem('optimizeFile', s.asset);
+
+        // 導航到回測頁面
+        navigate('/backtest');
     };
 
     return (
@@ -103,9 +135,28 @@ function StrategiesPage() {
                                         <td>{s.sharpe?.toFixed(2)}</td>
                                         <td style={{ fontSize: '0.875rem' }}>{s.backtest_period}</td>
                                         <td style={{ fontSize: '0.875rem', color: '#7f8c8d' }}>{s.created_at}</td>
-                                        <td>
+                                        <td style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button
+                                                onClick={() => handleRunStrategy(s)}
+                                                title="重跑回測"
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: 'white',
+                                                    padding: '0.35rem 0.6rem',
+                                                    borderRadius: '6px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.25rem',
+                                                    fontSize: '0.8rem'
+                                                }}
+                                            >
+                                                <Play size={14} /> 回測
+                                            </button>
                                             <button
                                                 onClick={() => handleDelete(s.id)}
+                                                title="刪除策略"
                                                 style={{
                                                     background: 'none',
                                                     border: 'none',
