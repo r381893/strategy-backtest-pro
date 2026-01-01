@@ -82,7 +82,7 @@ async def list_strategies() -> List[Dict]:
     for key, value in strategies.items():
         value['id'] = key
         result.append(value)
-    return sorted(result, key=lambda x: x.get('created_at', ''), reverse=True)
+    return sorted(result, key=lambda x: x.get('total_return', 0), reverse=True)
 
 @router.post("")
 async def save_strategy(strategy: Strategy) -> Dict:
