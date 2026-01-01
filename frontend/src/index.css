@@ -375,6 +375,14 @@ tr:hover {
 }
 
 /* 響應式 */
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none !important;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
@@ -399,4 +407,29 @@ tr:hover {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
   }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: flex !important;
+  }
+
+  .page-header {
+    padding: 1.25rem;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
+

@@ -120,78 +120,152 @@ function StrategiesPage() {
                         尚無儲存的策略
                     </p>
                 ) : (
-                    <div className="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>資產</th>
-                                    <th>策略</th>
-                                    <th>方向</th>
-                                    <th>槓桿</th>
-                                    <th title="投資期間的總收益百分比">總報酬 ⓘ</th>
-                                    <th title="複合年均成長率">年化報酬 ⓘ</th>
-                                    <th title="從最高點到最低點的最大跌幅">最大回撤 ⓘ</th>
-                                    <th>回測時長</th>
-                                    <th>回測區間</th>
-                                    <th>儲存時間</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {strategies.map((s) => (
-                                    <tr key={s.id}>
-                                        <td style={{ fontWeight: 600 }}>{s.asset?.replace('.xlsx', '').replace('.xls', '')}</td>
-                                        <td>{getStrategyLabel(s)}</td>
-                                        <td>{s.direction === 'long_only' ? '僅做多' : '做多做空'}</td>
-                                        <td>{s.leverage}x</td>
-                                        <td style={{ color: s.total_return >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>
-                                            {s.total_return}%
-                                        </td>
-                                        <td style={{ color: s.cagr >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>
-                                            {s.cagr}%
-                                        </td>
-                                        <td style={{ color: '#ff7675' }}>{s.mdd}%</td>
-                                        <td style={{ fontWeight: 500, color: '#6c5ce7' }}>{getBacktestDuration(s.backtest_period)}</td>
-                                        <td style={{ fontSize: '0.875rem' }}>{s.backtest_period}</td>
-                                        <td style={{ fontSize: '0.875rem', color: '#7f8c8d' }}>{s.created_at}</td>
-                                        <td style={{ display: 'flex', gap: '0.5rem' }}>
+                    <>
+                        {/* 桌面版表格 */}
+                        <div className="table-container desktop-only">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>資產</th>
+                                        <th>策略</th>
+                                        <th>槓桿</th>
+                                        <th title="投資期間的總收益百分比">總報酬</th>
+                                        <th title="複合年均成長率">年化報酬</th>
+                                        <th title="從最高點到最低點的最大跌幅">最大回撤</th>
+                                        <th>回測時長</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {strategies.map((s) => (
+                                        <tr key={s.id}>
+                                            <td style={{ fontWeight: 600 }}>{s.asset?.replace('.xlsx', '').replace('.xls', '')}</td>
+                                            <td>{getStrategyLabel(s)}</td>
+                                            <td>{s.leverage}x</td>
+                                            <td style={{ color: s.total_return >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>
+                                                {s.total_return}%
+                                            </td>
+                                            <td style={{ color: s.cagr >= 0 ? '#00b894' : '#ff7675', fontWeight: 600 }}>
+                                                {s.cagr}%
+                                            </td>
+                                            <td style={{ color: '#ff7675' }}>{s.mdd}%</td>
+                                            <td style={{ fontWeight: 500, color: '#6c5ce7' }}>{getBacktestDuration(s.backtest_period)}</td>
+                                            <td style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button
+                                                    onClick={() => handleRunStrategy(s)}
+                                                    title="重跑回測"
+                                                    style={{
+                                                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        color: 'white',
+                                                        padding: '0.35rem 0.6rem',
+                                                        borderRadius: '6px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem',
+                                                        fontSize: '0.8rem'
+                                                    }}
+                                                >
+                                                    <Play size={14} /> 回測
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(s.id)}
+                                                    title="刪除策略"
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        color: '#ff7675',
+                                                        padding: '0.25rem'
+                                                    }}
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* 手機版卡片 */}
+                        <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {strategies.map((s) => (
+                                <div key={s.id} style={{
+                                    background: 'linear-gradient(135deg, #f8fafc, #fff)',
+                                    borderRadius: '16px',
+                                    padding: '1rem',
+                                    boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+                                    border: '1px solid rgba(0,0,0,0.05)'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#2c3e50' }}>
+                                                {getStrategyLabel(s)}
+                                            </div>
+                                            <div style={{ fontSize: '0.85rem', color: '#7f8c8d' }}>
+                                                {s.asset?.replace('.xlsx', '').replace('.xls', '')} · {s.leverage}x
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
                                             <button
                                                 onClick={() => handleRunStrategy(s)}
-                                                title="重跑回測"
                                                 style={{
                                                     background: 'linear-gradient(135deg, #667eea, #764ba2)',
                                                     border: 'none',
                                                     cursor: 'pointer',
                                                     color: 'white',
-                                                    padding: '0.35rem 0.6rem',
-                                                    borderRadius: '6px',
+                                                    padding: '0.5rem 0.75rem',
+                                                    borderRadius: '8px',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: '0.25rem',
-                                                    fontSize: '0.8rem'
+                                                    fontSize: '0.85rem'
                                                 }}
                                             >
-                                                <Play size={14} /> 回測
+                                                <Play size={14} />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(s.id)}
-                                                title="刪除策略"
                                                 style={{
-                                                    background: 'none',
+                                                    background: 'rgba(255,118,117,0.1)',
                                                     border: 'none',
                                                     cursor: 'pointer',
                                                     color: '#ff7675',
-                                                    padding: '0.25rem'
+                                                    padding: '0.5rem',
+                                                    borderRadius: '8px'
                                                 }}
                                             >
-                                                <Trash2 size={18} />
+                                                <Trash2 size={16} />
                                             </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                                        <div style={{ textAlign: 'center', padding: '0.5rem', background: 'rgba(0,184,148,0.1)', borderRadius: '8px' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#7f8c8d' }}>總報酬</div>
+                                            <div style={{ fontWeight: 700, color: s.total_return >= 0 ? '#00b894' : '#ff7675' }}>
+                                                {s.total_return}%
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'center', padding: '0.5rem', background: 'rgba(108,92,231,0.1)', borderRadius: '8px' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#7f8c8d' }}>年化報酬</div>
+                                            <div style={{ fontWeight: 700, color: s.cagr >= 0 ? '#00b894' : '#ff7675' }}>
+                                                {s.cagr}%
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'center', padding: '0.5rem', background: 'rgba(255,118,117,0.1)', borderRadius: '8px' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#7f8c8d' }}>最大回撤</div>
+                                            <div style={{ fontWeight: 700, color: '#ff7675' }}>{s.mdd}%</div>
+                                        </div>
+                                    </div>
+                                    <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#7f8c8d', textAlign: 'right' }}>
+                                        {getBacktestDuration(s.backtest_period)} · {s.backtest_period}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
         </div>
