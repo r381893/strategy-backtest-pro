@@ -87,7 +87,10 @@ async def list_strategies() -> List[Dict]:
 @router.post("")
 async def save_strategy(strategy: Strategy) -> Dict:
     strategies = load_strategies()
-    strategy_id = f"{strategy.asset}_{strategy.backtest_period}".replace(" ", "").replace("~", "_").replace("/", "-")
+    # 生成 Firebase 相容的 ID（移除 . # $ [ ] / 等非法字元）
+    strategy_id = f"{strategy.asset}_{strategy.backtest_period}"
+    strategy_id = strategy_id.replace(" ", "").replace("~", "_").replace("/", "-")
+    strategy_id = strategy_id.replace(".", "_").replace("#", "").replace("$", "").replace("[", "").replace("]", "")
     strategy_data = strategy.dict()
     strategy_data['id'] = strategy_id
     strategy_data['created_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
