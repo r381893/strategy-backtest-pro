@@ -20,9 +20,9 @@ function OptimizePage() {
     const [config, setConfig] = useState({
         strategy_modes: ['buy_and_hold', 'single_ma', 'dual_ma'],
         ma_fast_range: [5, 10, 20, 30, 60],
-        ma_slow_range: [60, 120, 200],
-        leverage_range: [1.0, 2.0, 3.0],
-        directions: ['long_only', 'long_short'],
+        ma_slow_range: [60, 120],
+        leverage_range: [2.0, 2.5, 3.0],
+        directions: ['long_only'],
         initial_cash: 100000,
         fee_rate: 0.001,
         slippage: 0.0005,
@@ -50,6 +50,19 @@ function OptimizePage() {
 
     useEffect(() => {
         loadFiles();
+        // 載入上次的優化結果
+        const savedResults = localStorage.getItem('optimizeResults');
+        const savedFile = localStorage.getItem('optimizeSelectedFile');
+        if (savedResults) {
+            try {
+                setResults(JSON.parse(savedResults));
+            } catch (e) {
+                console.error('載入上次結果失敗');
+            }
+        }
+        if (savedFile) {
+            setSelectedFile(savedFile);
+        }
     }, []);
 
     const loadFiles = async () => {
@@ -74,6 +87,9 @@ function OptimizePage() {
         try {
             const res = await optimizeApi.run({ file_id: selectedFile, ...config });
             setResults(res.data);
+            // 儲存結果到 localStorage
+            localStorage.setItem('optimizeResults', JSON.stringify(res.data));
+            localStorage.setItem('optimizeSelectedFile', selectedFile);
         } catch (err) {
             alert('優化失敗: ' + (err.response?.data?.detail || err.message));
         }
