@@ -46,6 +46,25 @@ function StrategiesPage() {
         return s.strategy_type || '未知';
     };
 
+    // 計算回測時長 (幾年幾月)
+    const getBacktestDuration = (period) => {
+        if (!period) return '-';
+        const parts = period.split(' ~ ');
+        if (parts.length !== 2) return '-';
+
+        const start = new Date(parts[0]);
+        const end = new Date(parts[1]);
+        if (isNaN(start) || isNaN(end)) return '-';
+
+        const totalMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+        const years = Math.floor(totalMonths / 12);
+        const months = totalMonths % 12;
+
+        if (years === 0) return `${months}個月`;
+        if (months === 0) return `${years}年`;
+        return `${years}年${months}月`;
+    };
+
     // 點擊策略重跑回測
     const handleRunStrategy = (s) => {
         // 解析回測期間
@@ -112,7 +131,7 @@ function StrategiesPage() {
                                     <th title="投資期間的總收益百分比">總報酬 ⓘ</th>
                                     <th title="複合年均成長率">年化報酬 ⓘ</th>
                                     <th title="從最高點到最低點的最大跌幅">最大回撤 ⓘ</th>
-                                    <th title="風險調整後報酬">夏普比率 ⓘ</th>
+                                    <th>回測時長</th>
                                     <th>回測區間</th>
                                     <th>儲存時間</th>
                                     <th>操作</th>
@@ -132,7 +151,7 @@ function StrategiesPage() {
                                             {s.cagr}%
                                         </td>
                                         <td style={{ color: '#ff7675' }}>{s.mdd}%</td>
-                                        <td>{s.sharpe?.toFixed(2)}</td>
+                                        <td style={{ fontWeight: 500, color: '#6c5ce7' }}>{getBacktestDuration(s.backtest_period)}</td>
                                         <td style={{ fontSize: '0.875rem' }}>{s.backtest_period}</td>
                                         <td style={{ fontSize: '0.875rem', color: '#7f8c8d' }}>{s.created_at}</td>
                                         <td style={{ display: 'flex', gap: '0.5rem' }}>
