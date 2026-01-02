@@ -23,6 +23,9 @@ function DataPage() {
     const [updating, setUpdating] = useState({});
     const [updateAllLoading, setUpdateAllLoading] = useState(false);
 
+    // 圖表時間範圍選擇
+    const [chartRange, setChartRange] = useState('all');
+
     useEffect(() => {
         loadFiles();
     }, []);
@@ -372,9 +375,44 @@ function DataPage() {
                             <Edit3 size={18} /> 編輯資料
                         </button>
                     </div>
+
+                    {/* 時間範圍選擇器 */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                        {[
+                            { key: '1y', label: '1年' },
+                            { key: '3y', label: '3年' },
+                            { key: '5y', label: '5年' },
+                            { key: '10y', label: '10年' },
+                            { key: 'all', label: '全部' },
+                        ].map(range => (
+                            <button
+                                key={range.key}
+                                onClick={() => setChartRange(range.key)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    fontWeight: chartRange === range.key ? '600' : '400',
+                                    background: chartRange === range.key ? '#667eea' : '#f0f0f0',
+                                    color: chartRange === range.key ? 'white' : '#333',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {range.label}
+                            </button>
+                        ))}
+                    </div>
+
                     <div style={{ height: 400 }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={previewData.chart_data}>
+                            <LineChart data={(() => {
+                                if (!previewData?.chart_data || chartRange === 'all') return previewData?.chart_data || [];
+                                const years = parseInt(chartRange);
+                                const cutoffDate = new Date();
+                                cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+                                return previewData.chart_data.filter(d => new Date(d.date) >= cutoffDate);
+                            })()}>
                                 <XAxis
                                     dataKey="date"
                                     tick={{ fontSize: 12 }}
