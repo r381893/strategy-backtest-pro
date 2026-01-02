@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { strategiesApi } from '../services/api';
 import { Trash2, RefreshCw, Bookmark, Play } from 'lucide-react';
@@ -7,6 +7,7 @@ function StrategiesPage() {
     const navigate = useNavigate();
     const [strategies, setStrategies] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedAsset, setSelectedAsset] = useState('all');
 
     useEffect(() => {
         loadStrategies();
@@ -22,6 +23,22 @@ function StrategiesPage() {
         }
         setLoading(false);
     };
+
+    // 取得所有不重複的資產名稱
+    const assetList = useMemo(() => {
+        const assets = [...new Set(strategies.map(s =>
+            s.asset?.replace('.xlsx', '').replace('.xls', '') || '未知'
+        ))];
+        return assets.sort();
+    }, [strategies]);
+
+    // 根據選擇的資產過濾策略
+    const filteredStrategies = useMemo(() => {
+        if (selectedAsset === 'all') return strategies;
+        return strategies.filter(s =>
+            (s.asset?.replace('.xlsx', '').replace('.xls', '') || '未知') === selectedAsset
+        );
+    }, [strategies, selectedAsset]);
 
     const handleDelete = async (id) => {
         if (!window.confirm('確定要刪除這個策略嗎？')) return;
@@ -113,11 +130,62 @@ function StrategiesPage() {
                     </button>
                 </div>
 
+                {/* 資產分類 Tab */}
+                {!loading && strategies.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        gap: '0.5rem',
+                        marginBottom: '1.5rem',
+                        flexWrap: 'wrap',
+                        borderBottom: '2px solid #f0f0f0',
+                        paddingBottom: '1rem'
+                    }}>
+                        <button
+                            onClick={() => setSelectedAsset('all')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontWeight: selectedAsset === 'all' ? '600' : '400',
+                                background: selectedAsset === 'all' ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#f0f0f0',
+                                color: selectedAsset === 'all' ? 'white' : '#333',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            全部 ({strategies.length})
+                        </button>
+                        {assetList.map(asset => {
+                            const count = strategies.filter(s =>
+                                (s.asset?.replace('.xlsx', '').replace('.xls', '') || '未知') === asset
+                            ).length;
+                            return (
+                                <button
+                                    key={asset}
+                                    onClick={() => setSelectedAsset(asset)}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        fontWeight: selectedAsset === asset ? '600' : '400',
+                                        background: selectedAsset === asset ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#f0f0f0',
+                                        color: selectedAsset === asset ? 'white' : '#333',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {asset} ({count})
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="loading"><div className="spinner"></div></div>
-                ) : strategies.length === 0 ? (
+                ) : filteredStrategies.length === 0 ? (
                     <p style={{ textAlign: 'center', padding: '2rem', color: '#7f8c8d' }}>
-                        尚無儲存的策略
+                        {strategies.length === 0 ? '尚無儲存的策略' : `沒有 ${selectedAsset} 的策略`}
                     </p>
                 ) : (
                     <>
@@ -137,7 +205,7 @@ function StrategiesPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {strategies.map((s) => (
+                                    {filteredStrategies.map((s) => (
                                         <tr key={s.id}>
                                             <td style={{ fontWeight: 600 }}>{s.asset?.replace('.xlsx', '').replace('.xls', '')}</td>
                                             <td>{getStrategyLabel(s)}</td>
@@ -191,7 +259,7 @@ function StrategiesPage() {
 
                         {/* 手機版卡片 */}
                         <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {strategies.map((s) => (
+                            {filteredStrategies.map((s) => (
                                 <div key={s.id} style={{
                                     background: 'linear-gradient(135deg, #f8fafc, #fff)',
                                     borderRadius: '16px',
