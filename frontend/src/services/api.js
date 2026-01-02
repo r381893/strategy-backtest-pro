@@ -28,6 +28,13 @@ export const filesApi = {
     deleteRows: (fileId, indices) => api.delete(`/api/files/${fileId}/rows`, { data: { indices } }),
 };
 
+// Yahoo Finance API
+export const yahooApi = {
+    getSymbols: () => api.get('/api/yahoo/symbols'),
+    updateFile: (fileId) => api.post(`/api/yahoo/update/${fileId}`),
+    download: (symbol, name) => api.post('/api/yahoo/download', null, { params: { symbol, name } }),
+};
+
 // 回測相關 API
 export const backtestApi = {
     run: (fileId, params) => api.post('/api/backtest/run', { file_id: fileId, params }),

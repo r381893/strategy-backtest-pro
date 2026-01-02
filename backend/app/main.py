@@ -1,7 +1,7 @@
 # FastAPI Backend
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import files, backtest, strategies, optimize
+from app.api import files, backtest, strategies, optimize, yahoo_finance
 
 app = FastAPI(
     title="高級回測系統 Pro API",
@@ -28,6 +28,7 @@ app.include_router(files.router, prefix="/api/files", tags=["Files"])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["Backtest"])
 app.include_router(strategies.router, prefix="/api/strategies", tags=["Strategies"])
 app.include_router(optimize.router, prefix="/api/optimize", tags=["Optimize"])
+app.include_router(yahoo_finance.router, prefix="/api/yahoo", tags=["Yahoo Finance"])
 
 @app.get("/")
 async def root():

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { filesApi } from '../services/api';
-import { Upload, Trash2, RefreshCw, FileSpreadsheet, Edit3, Plus, Save, X, ClipboardPaste } from 'lucide-react';
+import { filesApi, yahooApi } from '../services/api';
+import { Upload, Trash2, RefreshCw, FileSpreadsheet, Edit3, Plus, Save, X, ClipboardPaste, Download } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 function DataPage() {
@@ -18,6 +18,10 @@ function DataPage() {
     const [saving, setSaving] = useState(false);
     const [showPasteModal, setShowPasteModal] = useState(false);
     const [pasteText, setPasteText] = useState('');
+
+    // Yahoo Finance 更新狀態
+    const [updating, setUpdating] = useState({});
+    const [updateAllLoading, setUpdateAllLoading] = useState(false);
 
     useEffect(() => {
         loadFiles();
@@ -75,6 +79,58 @@ function DataPage() {
         } catch (err) {
             alert('刪除失敗');
         }
+    };
+
+    // 從 Yahoo Finance 更新單一檔案
+    const handleUpdateFromYahoo = async (fileId, e) => {
+        if (e) e.stopPropagation();
+        setUpdating(prev => ({ ...prev, [fileId]: true }));
+        try {
+            const res = await yahooApi.updateFile(fileId);
+            if (res.data.status === 'success') {
+                alert(`✅ 更新成功！\n新增 ${res.data.rows_added} 筆資料\n最新日期：${res.data.new_last_date}`);
+                loadFiles();
+                if (selectedFile?.id === fileId) {
+                    handleFileSelect(selectedFile);
+                }
+            } else {
+                alert(`ℹ️ ${res.data.message}`);
+            }
+        } catch (err) {
+            const detail = err.response?.data?.detail || err.message;
+            if (detail.includes('不支援')) {
+                alert(`⚠️ 此檔案不支援自動更新\n\n支援的檔案：BTC、ETH、Doge、加權指數`);
+            } else {
+                alert(`❌ 更新失敗: ${detail}`);
+            }
+        }
+        setUpdating(prev => ({ ...prev, [fileId]: false }));
+    };
+
+    // 更新所有支援的檔案
+    const handleUpdateAll = async () => {
+        if (!confirm('確定要更新所有支援的資料檔案嗎？\n\n這會從 Yahoo Finance 下載最新資料。')) return;
+        setUpdateAllLoading(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const file of files) {
+            try {
+                const res = await yahooApi.updateFile(file.id);
+                if (res.data.status === 'success' || res.data.status === 'no_update') {
+                    successCount++;
+                }
+            } catch (err) {
+                // 忽略不支援的檔案
+                if (!err.response?.data?.detail?.includes('不支援')) {
+                    failCount++;
+                }
+            }
+        }
+
+        setUpdateAllLoading(false);
+        loadFiles();
+        alert(`✅ 更新完成！\n成功：${successCount} 個檔案\n失敗：${failCount} 個檔案`);
     };
 
     // 進入編輯模式
@@ -233,6 +289,14 @@ function DataPage() {
                         <button className="btn btn-primary" onClick={loadFiles}>
                             <RefreshCw size={18} /> 重新整理
                         </button>
+                        <button
+                            className="btn"
+                            onClick={handleUpdateAll}
+                            disabled={updateAllLoading}
+                            style={{ background: '#6c5ce7', color: 'white' }}
+                        >
+                            <Download size={18} /> {updateAllLoading ? '更新中...' : '📡 更新全部'}
+                        </button>
                         <label className="btn btn-success" style={{ cursor: 'pointer' }}>
                             <Upload size={18} /> 上傳檔案
                             <input type="file" accept=".xlsx,.xls" onChange={handleUpload} style={{ display: 'none' }} />
@@ -259,12 +323,26 @@ function DataPage() {
                                         <FileSpreadsheet size={18} style={{ marginRight: '0.5rem', color: '#667eea' }} />
                                         {file.name}
                                     </div>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(file.id); }}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff7675' }}
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        <button
+                                            onClick={(e) => handleUpdateFromYahoo(file.id, e)}
+                                            disabled={updating[file.id]}
+                                            title="從 Yahoo Finance 更新"
+                                            style={{
+                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                color: updating[file.id] ? '#b2bec3' : '#6c5ce7',
+                                                animation: updating[file.id] ? 'spin 1s linear infinite' : 'none'
+                                            }}
+                                        >
+                                            <Download size={18} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDelete(file.id); }}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff7675' }}
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="file-info">
                                     <span>📅 {file.latest_date || 'N/A'}</span>
