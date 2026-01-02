@@ -47,8 +47,10 @@ function DataPage() {
         setEditData([]);
         setNewRows([]);
         setDeletedIndices([]);
+        setChartRange('all'); // 重置時間範圍
         try {
-            const res = await filesApi.preview(file.id);
+            // 載入更多資料以支援長期圖表顯示（10年約需要 2500 筆交易日資料）
+            const res = await filesApi.preview(file.id, 5000);
             setPreviewData(res.data);
         } catch (err) {
             console.error('預覽失敗:', err);
