@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { filesApi, optimizeApi } from '../services/api';
-import { Search, Trophy, Settings, ChevronDown, ChevronUp, Play, TrendingUp } from 'lucide-react';
+import { filesApi, optimizeApi, strategiesApi } from '../services/api';
+import { Search, Trophy, Settings, ChevronDown, ChevronUp, Play, TrendingUp, Save } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 function OptimizePage() {
@@ -16,6 +16,7 @@ function OptimizePage() {
     const [expandedRow, setExpandedRow] = useState(null);
     const [chartData, setChartData] = useState(null);
     const [chartLoading, setChartLoading] = useState(false);
+    const [savingIndex, setSavingIndex] = useState(null); // 正在儲存的策略索引
 
     const [config, setConfig] = useState({
         strategy_modes: ['buy_and_hold', 'single_ma', 'dual_ma'],
@@ -119,6 +120,49 @@ function OptimizePage() {
         localStorage.setItem('optimizeParams', JSON.stringify(params));
         localStorage.setItem('optimizeFile', selectedFile);
         navigate('/backtest');
+    };
+
+    // 直接儲存優化結果中的策略
+    const handleSaveStrategy = async (result, index) => {
+        setSavingIndex(index);
+        try {
+            // 取得檔案名稱
+            const file = files.find(f => f.id === selectedFile);
+            const fileName = file ? file.name : selectedFile;
+
+            await strategiesApi.save({
+                name: `策略_${new Date().toISOString().slice(0, 10)}`,
+                asset: fileName,
+                strategy_type: result.strategy_type,
+                direction: result.direction,
+                ma_period: result.ma_fast || 20,
+                ma_fast: result.ma_fast || null,
+                ma_slow: result.ma_slow || null,
+                leverage: result.leverage,
+                total_return: result.total_return,
+                cagr: result.cagr,
+                mdd: result.mdd,
+                sharpe: result.sharpe_ratio,
+                calmar: result.calmar_ratio,
+                backtest_period: `${config.start_date} ~ ${config.end_date}`,
+                params: {
+                    strategy_mode: result.strategy_type,
+                    ma_fast: result.ma_fast,
+                    ma_slow: result.ma_slow,
+                    leverage: result.leverage,
+                    trade_direction: result.direction,
+                    initial_cash: config.initial_cash,
+                    fee_rate: config.fee_rate,
+                    slippage: config.slippage,
+                    start_date: config.start_date,
+                    end_date: config.end_date,
+                },
+            });
+            alert('策略已儲存！');
+        } catch (err) {
+            alert('儲存失敗: ' + (err.response?.data?.detail || err.message));
+        }
+        setSavingIndex(null);
     };
 
     // 查看圖表
@@ -420,14 +464,27 @@ function OptimizePage() {
                                             <td>
                                                 <div style={{ display: 'flex', gap: '0.25rem' }}>
                                                     <button
+                                                        onClick={() => handleSaveStrategy(r, i)}
+                                                        disabled={savingIndex === i}
+                                                        title="直接儲存此策略"
+                                                        style={{
+                                                            padding: '0.25rem 0.5rem', fontSize: '0.75rem',
+                                                            background: savingIndex === i ? '#95a5a6' : '#667eea', color: 'white', border: 'none',
+                                                            borderRadius: '4px', cursor: savingIndex === i ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem'
+                                                        }}
+                                                    >
+                                                        <Save size={12} /> {savingIndex === i ? '...' : '儲存'}
+                                                    </button>
+                                                    <button
                                                         onClick={() => handleUseStrategy(r)}
+                                                        title="使用此參數進行回測"
                                                         style={{
                                                             padding: '0.25rem 0.5rem', fontSize: '0.75rem',
                                                             background: '#00b894', color: 'white', border: 'none',
                                                             borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem'
                                                         }}
                                                     >
-                                                        <Play size={12} /> 使用
+                                                        <Play size={12} /> 回測
                                                     </button>
                                                     {r.strategy_type !== 'buy_and_hold' && (
                                                         <button

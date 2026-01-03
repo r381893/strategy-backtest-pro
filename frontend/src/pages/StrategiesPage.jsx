@@ -89,6 +89,12 @@ function StrategiesPage() {
         const startDate = periodParts[0] || '2015-01-01';
         const endDate = periodParts[1] || new Date().toISOString().split('T')[0];
 
+        // 過濾 s.params 中的空值（null, undefined, 空字串）
+        // 避免空的 end_date 覆蓋正確解析出的日期
+        const cleanParams = s.params ? Object.fromEntries(
+            Object.entries(s.params).filter(([_, v]) => v !== null && v !== undefined && v !== '')
+        ) : {};
+
         // 構建參數
         const params = {
             strategy_mode: s.strategy_type,
@@ -101,7 +107,7 @@ function StrategiesPage() {
             initial_cash: 100000,
             fee_rate: 0.001,
             slippage: 0.0005,
-            ...s.params  // 如果有保存的完整參數，覆蓋上面的預設值
+            ...cleanParams  // 只覆蓋有效的參數
         };
 
         // 存入 localStorage
