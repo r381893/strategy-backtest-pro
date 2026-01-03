@@ -146,6 +146,9 @@ async def run_optimization(request: OptimizeRequest) -> List[OptimizeResult]:
                 if result is not None:
                     results.append(result)
         
+        # 過濾掉爆倉的策略（MDD >= 99% 表示幾乎全部虧損）
+        results = [r for r in results if r.mdd < 99 and r.total_return > -99]
+        
         results.sort(key=lambda x: getattr(x, request.sort_by), reverse=True)
         return results[:request.top_n]
     
